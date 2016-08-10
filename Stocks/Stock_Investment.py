@@ -6,19 +6,47 @@ I will use yahoo_finance to determine the price_book of all stocks and display t
  price_book ratio (less than 1 means stock is undervalued).
 """
 
-from googlefinance import getQuotes
+import csv
 from yahoo_finance import Share
+import time
 
-stock = input("What stock symbol do you want to look up? ")
+f = open('companylist.csv', 'rt')
+g = open('symbol_pb_ratio.csv', 'wt')
 
-Share(stock).refresh()
+tick = 0                #a counter so yahoo finance doesn't time out.  you can only make 2000 queries an hour
 
-stock_price = float(Share(stock).get_price())
+try:
+    reader = csv.reader(f)
+    writer = csv.writer(g)
 
-stock_book_value = float(Share(stock).get_book_value())
+    writer.writerow(('Stock_Symbol', 'Current_Price', 'P/B_Ratio'))
 
-print(stock, ": $", stock_price)
-print("Book value per share: ", stock_book_value)
-print("P/B Ratio Calculated: ", stock_price/stock_book_value)
+    for row in reader:
 
-print("Price Book", Share(stock).get_price_book())
+        stock = row[0]
+
+        Share(stock).refresh()
+
+        tick = tick + 1
+
+        if tick == 1500:
+
+            time.sleep(3600)              #when 1500 queries have happened, this will pause 1 hour
+
+        if type(Share(stock).get_price()) == str:         #if stock.get_price() is a string, then yahoo sent back information
+
+            stock_price = float(Share(stock).get_price())
+            stock_book_value = float(Share(stock).get_book_value())
+
+            if stock_price != 0 and stock_book_value != 0:      #if either are 0, the pb_ratio can't be calculated
+
+                pb_ratio = round(stock_price / stock_book_value, 2)
+
+                if pb_ratio < 1:                    #all we care about right now is stocks where the ratio is less than 0
+
+                    writer.writerow((stock, stock_price, pb_ratio))
+
+            
+finally:
+    f.close()
+    g.close()
